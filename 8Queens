@@ -1,0 +1,148 @@
+import random, math
+
+def ints(pop_size):
+    import itertools
+    perms = itertools.permutations([1, 2, 3, 4, 5, 6, 7, 8], r=None)
+    start = random.randint(0, 40320 - pop_size)
+    stop = start + pop_size
+    return list(itertools.islice(perms, start, stop))
+
+def print_chr(chrom):
+    for i in range(8):
+        print("┃", end='')
+        for j in range(8):
+            if j + 1 == chrom[i]:
+                print(" ♕ ┃", end='')
+            else:
+                print("   ┃", end='')
+        print()
+        print("┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃")
+
+def Q_penalty(index, chrom):
+    col = index
+    row = chrom[index]
+    penalty = 0
+    for i in range(len(chrom)):
+        if i == col:
+            continue
+        if chrom[i] < row and chrom[i] + math.fabs(col - i) == row:
+            penalty = penalty + 1
+        elif chrom[i] > row and chrom[i] - math.fabs(col - i) == row:
+            penalty = penalty + 1
+    return penalty
+
+def config_penalty(chrom):
+    T_penalty  = 0
+    for i in range(len(chrom)):
+        T_penalty  = T_penalty  + Q_penalty(i, chrom)
+    return T_penalty 
+
+def P_fit(population):
+    fitness = []
+    for chrom in population:
+        penalty = config_penalty(chrom)
+        if penalty > 0:
+            fitness.append(1/penalty)
+        else:
+            fitness.append(2)
+    return fitness
+
+def Ch_fit(chrom):
+    penalty = config_penalty(chrom)
+    if penalty > 0:
+        return 1/penalty
+    else:
+        return 2
+
+def Select(population, num):
+    rand_list = random.sample(range(0, len(population)), num)
+    selected = []
+    for i in rand_list:
+        selected.append(population[i])
+    return selected
+
+def two_par(population):
+    population.sort(reverse=True, key=Ch_fit)
+    return population[0:2]
+
+def C_O(parent1, parent2):
+    parent1 = list(parent1)
+    parent2 = list(parent2)
+    pos = random.randint(1, 6)
+    child1 = parent1[0:pos]
+    child2 = parent2[0:pos]
+    for i in range(len(parent1)):
+        if parent1[i] not in child2:
+            child2.append(parent1[i])
+        if parent2[i] not in child1:
+            child1.append(parent2[i])
+    child1 = tuple(child1)
+    child2 = tuple(child2)
+    return [child1, child2]
+
+def mut(childs, mut_prob):
+    mutated = []
+    for child in childs:
+        prob = random.randint(1, 100)
+        if prob < mut_prob:
+            mutated.append(mutate(child))
+        else:
+            mutated.append(child)
+    return mutated
+
+def mutate(chrom):
+    pos1 = random.randint(0, len(chrom) - 1)
+    pos2 = random.randint(0, len(chrom) - 1)
+    chrom = list(chrom)
+    temp = chrom[pos1]
+    chrom[pos1] = chrom[pos2]
+    chrom[pos2] = temp
+    chrom = tuple(chrom)
+    return chrom
+
+def S_Select(population, childs):
+    population.sort(reverse=True, key=Ch_fit)
+    population[-1] = childs[0]
+    population[-2] = childs[1]
+    if Ch_fit(childs[0]) == 2:
+        return (1, population)
+    if Ch_fit(childs[1]) == 2:
+        return (2, population)
+    return (0, population)
+
+pop_size = 100
+select_random = 5
+mut_prob = 80
+pop = ints(pop_size)
+rounds = 10000
+TOTAL_ROUNDS = rounds
+while rounds > 0:
+    selected = Select(pop, select_random)
+    parents = two_par(selected)
+    childs = C_O(parents[0], parents[1])
+    childs = mut(childs, mut_prob)
+    done, pop = S_Select(pop, childs)
+    if done == 1:
+        print("Top 10 answers after {0} iterations:".format(TOTAL_ROUNDS - rounds))
+        pop.sort(reverse=True, key=Ch_fit)
+        print(pop[0:10])
+        print("Final answer:")
+        print(childs[0])
+        print_chr(childs[0])
+        break
+    if done == 2:
+        print("Top 10 answers after {0} iterations:".format(TOTAL_ROUNDS - rounds))
+        pop.sort(reverse=True, key=Ch_fit)
+        print(pop[0:10])
+        print("Best answer:")
+        print(childs[1])
+        print("┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃")
+        print_chr(childs[1])
+        break
+    rounds = rounds - 1
+
+if rounds <= 0:
+    pop.sort(reverse=True, key=Ch_fit)
+    print("Final answer at the end:")
+    print(pop[0])
+    print_chr(pop[0])
